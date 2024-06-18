@@ -1,6 +1,8 @@
 import User from "../models/userModel.js";
 import bcrypt from 'bcryptjs';
+import {v2 as cloudinary} from "cloudinary";
 import generateTokenAndSetCookie from "../utils/generateTokenAndSetCookie.js";
+import mongoose from "mongoose";
 
 const signupUser = async(req, res)=>{
     try{
@@ -30,7 +32,8 @@ const signupUser = async(req, res)=>{
                 name: newUser.name,
                 email: newUser.email,
                 username: newUser.username,
-                message:"User created successfully"
+                bio: newUser.bio,
+                profilePic: newUser.profilePic,
             })
         }
         else{
@@ -61,7 +64,9 @@ const loginUser = async(req, res) =>{
             _id: user._id,
             name: user.name,
             email: user.email,
-            username: user.username
+            username: user.username,
+            bio: user.bio,
+            profilePic: user.profilePic,
         })
 
     } catch (error) {
@@ -117,21 +122,32 @@ const followUnFollowUser = async(req, res)=>{
 }
 
     const updateUser = async(req, res)=>{
-        try {
-            const {name, email, password, username, profilePic, bio} = req.body;
+            const { name, email, username, password, bio } = req.body;
+            let { profilePic } = req.body;
+        
             const userId = req.user._id;
-            let user = await User.findById(userId);
-            if(!user){
-                return res.status(400).json({error:"User not found"});
-            }        
-            if(req.params.id !== userId.toString()){
-                return res.status(400).json({error:"Unauthorized access"});
-            }
-            if(password){
-                const salt = await bcrypt.genSalt(10);
-                const hashedPassword = await bcrypt.hash(password, salt);
-                user.password = hashedPassword;
-            }
+            try {
+                let user = await User.findById(userId);
+                if (!user) return res.status(400).json({ error: "User not found" });
+        
+                if (req.params.id !== userId.toString())
+                    return res.status(400).json({ error: "You cannot update other user's profile" });
+        
+                if (password) {
+                    const salt = await bcrypt.genSalt(10);
+                    const hashedPassword = await bcrypt.hash(password, salt);
+                    user.password = hashedPassword;
+                }
+        
+                if (profilePic) {
+                    if (user.profilePic) {
+                        await cloudinary.uploader.destroy(user.profilePic.split("/").pop().split(".")[0]);
+                    }
+        
+                    const uploadedResponse = await cloudinary.uploader.upload(profilePic);
+                    profilePic = uploadedResponse.secure_url;
+                }
+    
             
             user.name = name || user.name;
             user.email = email || user.email;
@@ -141,7 +157,7 @@ const followUnFollowUser = async(req, res)=>{
 
             user = await user.save();
 
-            res.status(200).json({message:"Profile updated successfully", user})
+            res.status(200).json(user)
 
 
         } catch (error) {
@@ -150,19 +166,30 @@ const followUnFollowUser = async(req, res)=>{
         }
     }
 
-    const getUserProfile = async(req, res)=>{
-        const {username}= req.params
+    const getUserProfile = async (req, res) => {
+        // We will fetch user profile either with username or userId
+        // query is either username or userId
+        const { query } = req.params;
+    
         try {
-            const user = await User.findOne({username}).select("-password").select("-updatedAt");
-            if(!user){
-                return res.status(404).json({error:"User not found"});
-                }
-                res.status(200).json({user})
-        } catch (error) {
-            res.status(500).json({error:error.message})
-            console.log("Error in updateUser", error.message);   
+            let user;
+    
+            // query is userId
+            if (mongoose.Types.ObjectId.isValid(query)) {
+                user = await User.findOne({ _id: query }).select("-password").select("-updatedAt");
+            } else {
+                // query is username
+                user = await User.findOne({ username: query }).select("-password").select("-updatedAt");
+            }
+    
+            if (!user) return res.status(404).json({ error: "User not found" });
+    
+            res.status(200).json(user);
+        } catch (err) {
+            res.status(500).json({ error: err.message });
+            console.log("Error in getUserProfile: ", err.message);
         }
-    }
+    };
 
 
 export {
