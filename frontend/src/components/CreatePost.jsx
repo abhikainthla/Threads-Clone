@@ -4,8 +4,10 @@ import React, { useRef, useState } from 'react'
 import usePreviewImg from '../hooks/usePreviewImg';
 import { BsFillImageFill } from 'react-icons/bs';
 import useShowToast from '../hooks/useShowToast';
-import { useRecoilValue } from 'recoil';
+import { useRecoilState, useRecoilValue } from 'recoil';
 import userAtom from '../atoms/userAtom';
+import postAtom from '../atoms/postAtom';
+import { useParams } from 'react-router-dom';
 
 const CreatePost = () => {
     const MAX_CHAR=500
@@ -13,6 +15,8 @@ const CreatePost = () => {
     const [postText, setPostText] = useState("");
     const [remaining, setRemaining] = useState(MAX_CHAR);
     const [updating, setUpdating] = useState(false);
+    const [posts, setPosts] = useRecoilState(postAtom)
+    const username = useParams();
 
     const showToast = useShowToast();
     const { handleImageChange, imgUrl, setImgUrl } = usePreviewImg();
@@ -54,6 +58,9 @@ const CreatePost = () => {
                 return
             }
             showToast("Success","Post created successfully", "success")
+            if(username === user.username){
+                setPosts([data, ...posts]);
+            }
             onClose()
             setPostText('');
             setImgUrl('');
@@ -69,7 +76,7 @@ const CreatePost = () => {
 
   return (
     <>
-    <Button position={"fixed"} bottom={10} right={10} leftIcon={<AddIcon/>} bg={useColorModeValue("gray.300", "gray.dark")} onClick={onOpen}>Post</Button>
+    <Button position={"fixed"} bottom={10} right={5}  bg={useColorModeValue("gray.300", "gray.dark")} onClick={onOpen} size={{base: "sm", sm: "md"}}><AddIcon/></Button>
 
     <Modal isOpen={isOpen} onClose={onClose}>
         <ModalOverlay />
@@ -113,7 +120,7 @@ const CreatePost = () => {
 
           <ModalFooter>
             <Button colorScheme='blue' mr={3} onClick={handelCreatePost} isLoading={updating}>
-              Post
+                Post
             </Button>
           </ModalFooter>
         </ModalContent>

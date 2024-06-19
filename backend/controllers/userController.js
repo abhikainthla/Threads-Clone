@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import {v2 as cloudinary} from "cloudinary";
 import generateTokenAndSetCookie from "../utils/generateTokenAndSetCookie.js";
 import mongoose from "mongoose";
-
+import Post from "../models/postModel.js";
 const signupUser = async(req, res)=>{
     try{
         const {name, email, password, username} = req.body;
@@ -155,7 +155,20 @@ const followUnFollowUser = async(req, res)=>{
             user.profilePic = profilePic || user.profilePic;
             user.bio = bio || user.bio;
 
+            await Post.updateMany(
+                {"replies.userId":userId},
+                {
+                    $set:{
+                        "replies.$[reply].username":user.username,
+                        "replies.$[reply].userProfilePic":user.profilePic
+                    }
+                },
+                {arrayFilters:[{"reply.userId":userId}]}
+            )
             user = await user.save();
+
+            user.password = null
+
 
             res.status(200).json(user)
 
@@ -167,18 +180,15 @@ const followUnFollowUser = async(req, res)=>{
     }
 
     const getUserProfile = async (req, res) => {
-        // We will fetch user profile either with username or userId
-        // query is either username or userId
+
         const { query } = req.params;
     
         try {
             let user;
     
-            // query is userId
             if (mongoose.Types.ObjectId.isValid(query)) {
                 user = await User.findOne({ _id: query }).select("-password").select("-updatedAt");
             } else {
-                // query is username
                 user = await User.findOne({ username: query }).select("-password").select("-updatedAt");
             }
     
