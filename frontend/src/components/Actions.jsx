@@ -1,114 +1,112 @@
-import { Box, Button, Flex, FormControl, FormLabel, Input, Modal, ModalBody, ModalCloseButton, ModalContent, ModalFooter, ModalHeader, ModalOverlay, Text, useDisclosure } from '@chakra-ui/react'
-import React, { useState } from 'react'
-import useShowToast from '../hooks/useShowToast'
-import { useRecoilState, useRecoilValue } from 'recoil'
-import userAtom from '../atoms/userAtom'
-import { set } from 'date-fns'
-import postAtom from '../atoms/postAtom'
+import {
+	Box,
+	Button,
+	Flex,
+	FormControl,
+	Input,
+	Modal,
+	ModalBody,
+	ModalCloseButton,
+	ModalContent,
+	ModalFooter,
+	ModalHeader,
+	ModalOverlay,
+	Text,
+	useDisclosure,
+} from "@chakra-ui/react";
+import { useState } from "react";
+import { useRecoilState, useRecoilValue } from "recoil";
+import userAtom from "../atoms/userAtom";
+import useShowToast from "../hooks/useShowToast";
+import postAtom from "../atoms/postAtom";
 
-const Actions = ({ post}) => {
-	const user = useRecoilValue(userAtom)
-	const [liked, setLiked] = useState(post.likes.includes(user?._id))
-	const [posts, setPosts] = useRecoilState(postAtom)
-	const [reply, setReply] = useState("");
+const Actions = ({ post }) => {
+	const user = useRecoilValue(userAtom);
+	const [liked, setLiked] = useState(post.likes.includes(user?._id));
+	const [posts, setPosts] = useRecoilState(postAtom);
 	const [isLiking, setIsLiking] = useState(false);
 	const [isReplying, setIsReplying] = useState(false);
-	const { isOpen, onOpen, onClose } = useDisclosure()
-	const showToast = useShowToast()
-	const handleLikeAndUnlike = async() =>{
-		if(!user){
-			return showToast("Error","You must be logged in to like a post", "error")
-		}
-		if(isLiking){
-			return
-		}
-		setIsLiking(true)
-		try {
-			const res = await fetch("/api//posts/like/"+ post._id,{
-				method:"PUT",
-				headers:{
-					"Content-Type": "application/json",
-				}
-			})
-			const data = await res.json();
-			if(data.error){
-				showToast("Error", data.error, "error")
-				return
-			} 
-			if(!liked){
-				const updatedPosts = posts.map((p)=>{
-					if(p._id === post._id){
-						return { ...p, likes: [...p.likes, user._id]}
-					}
-					return p;
-				})
-				setPosts(updatedPosts);
-			}
-			else{
-				const updatedPosts = posts.map((p)=>{
-					if(p._id === post._id){
-						return { ...p, likes: [...p.likes.filter((id)=> id !== user._id)]}
-					}
-					return p;
-				})
-				setPosts(updatedPosts);
-			}
+	const [reply, setReply] = useState("");
 
-			setLiked(!liked)
-		} catch (error) {
-			showToast("Error", error.message, "error")
-		}
-		finally{
-			setIsLiking(false)
-		}
-	}
+	const showToast = useShowToast();
+	const { isOpen, onOpen, onClose } = useDisclosure();
 
-	const handlReply = async() =>{
-		if(!user){
-			return showToast("Error","You must be login to reply to this post", "error")
-		}
-		if(isReplying){
-			return;
-		}
-		setIsReplying(true);
+	const handleLikeAndUnlike = async () => {
+		if (!user) return showToast("Error", "You must be logged in to like a post", "error");
+		if (isLiking) return;
+		setIsLiking(true);
 		try {
-			const res = await fetch("/api/posts/reply/"+ post._id,{
-				method:"PUT",
-				headers:{
+			const res = await fetch("/api/posts/like/" + post._id, {
+				method: "PUT",
+				headers: {
 					"Content-Type": "application/json",
 				},
-				body: JSON.stringify({text:reply})
-			})
+			});
 			const data = await res.json();
-			if(data.error){
-				showToast("Error", data.error, "error")
-				return
-			} 
+			if (data.error) return showToast("Error", data.error, "error");
 
-			const updatedPosts = posts.map((p)=>{
-				if(p._id === post._id) {
-					return { ...p, replies: [...p.replies, data]}
+			if (!liked) {
+				const updatedPosts = posts.map((p) => {
+					if (p._id === post._id) {
+						return { ...p, likes: [...p.likes, user._id] };
+					}
+					return p;
+				});
+				setPosts(updatedPosts);
+			} else {
+				const updatedPosts = posts.map((p) => {
+					if (p._id === post._id) {
+						return { ...p, likes: p.likes.filter((id) => id !== user._id) };
+					}
+					return p;
+				});
+				setPosts(updatedPosts);
+			}
+
+			setLiked(!liked);
+		} catch (error) {
+			showToast("Error", error.message, "error");
+		} finally {
+			setIsLiking(false);
+		}
+	};
+
+	const handleReply = async () => {
+		if (!user) return showToast("Error", "You must be logged in to reply to a post", "error");
+		if (isReplying) return;
+		setIsReplying(true);
+		try {
+			const res = await fetch("/api/posts/reply/" + post._id, {
+				method: "PUT",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({ text: reply }),
+			});
+			const data = await res.json();
+			if (data.error) return showToast("Error", data.error, "error");
+
+			const updatedPosts = posts.map((p) => {
+				if (p._id === post._id) {
+					return { ...p, replies: [...p.replies, data] };
 				}
-				return p
-			})
+				return p;
+			});
 			setPosts(updatedPosts);
-
 			showToast("Success", "Reply posted successfully", "success");
 			onClose();
-			setReply('');
+			setReply("");
 		} catch (error) {
-			showToast("Error",error.message,"error")
-		}
-		finally{
+			showToast("Error", error.message, "error");
+		} finally {
 			setIsReplying(false);
 		}
-	}
+	};
 
-
-   return(
-	<Flex flexDirection={"column"}>
-    <Flex gap={3} my={2} onClick={(e)=> e.preventDefault()}>
-        <svg
+	return (
+		<Flex flexDirection='column'>
+			<Flex gap={3} my={2} onClick={(e) => e.preventDefault()}>
+				<svg
 					aria-label='Like'
 					color={liked ? "rgb(237, 73, 86)" : ""}
 					fill={liked ? "rgb(237, 73, 86)" : "transparent"}
@@ -145,50 +143,47 @@ const Actions = ({ post}) => {
 					></path>
 				</svg>
 
-
-				<RepostSVG/>
-				<ShareSVG/>
-
-				</Flex>
+				<RepostSVG />
+				<ShareSVG />
+			</Flex>
 
 			<Flex gap={2} alignItems={"center"}>
-            <Text color={"gray.light"} fontSize={"sm"}>{post.replies.length} replies</Text>
-            <Box w={0.5} h={0.5} borderRadius={"full"} bg={"gray.light"}></Box>
-            <Text color={"gray.light"} fontSize={"sm"}>{post.likes.length} likes</Text>
-          </Flex>
+				<Text color={"gray.light"} fontSize='sm'>
+					{post.replies.length} replies
+				</Text>
+				<Box w={0.5} h={0.5} borderRadius={"full"} bg={"gray.light"}></Box>
+				<Text color={"gray.light"} fontSize='sm'>
+					{post.likes.length} likes
+				</Text>
+			</Flex>
 
-		  <Modal
-        isOpen={isOpen}
-        onClose={onClose}
-      >
-        <ModalOverlay />
-        <ModalContent>
-			<ModalHeader></ModalHeader>
-          <ModalCloseButton />
-          <ModalBody pb={6}>
-            <FormControl>
-              <FormLabel>Comment</FormLabel>
-              <Input placeholder='Reply goes here' value={reply} onChange={(e)=>{ setReply(e.target.value)}} />
-            </FormControl>
-          </ModalBody>
+			<Modal isOpen={isOpen} onClose={onClose}>
+				<ModalOverlay />
+				<ModalContent>
+					<ModalHeader></ModalHeader>
+					<ModalCloseButton />
+					<ModalBody pb={6}>
+						<FormControl>
+							<Input
+								placeholder='Reply goes here..'
+								value={reply}
+								onChange={(e) => setReply(e.target.value)}
+							/>
+						</FormControl>
+					</ModalBody>
 
-          <ModalFooter>
-            <Button colorScheme='blue' size={"sm"} mr={3}
-			onClick={handlReply}
-			isLoading={isReplying}
-			>
-              Reply
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+					<ModalFooter>
+						<Button colorScheme='blue' size={"sm"} mr={3} isLoading={isReplying} onClick={handleReply}>
+							Reply
+						</Button>
+					</ModalFooter>
+				</ModalContent>
+			</Modal>
+		</Flex>
+	);
+};
 
-    </Flex>
-
-    )
-}
-
-export default Actions
+export default Actions;
 
 const RepostSVG = () => {
 	return (
