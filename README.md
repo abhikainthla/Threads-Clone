@@ -1,6 +1,6 @@
 # Threads Clone
 
-This project is a clone of the popular Threads website, built using the MERN stack (MongoDB, Express.js, React.js, Node.js). Threads is a platform where users can create, discover, and engage in threaded discussions on various topics.
+This project is a clone of the popular Threads website, built using the MERN stack (MongoDB, Express.js, React.js, Node.js). Threads is a platform where users can create, discover, and engage in threaded discussions on various topics. [Hosted Link](https://threads-clone-wv7w.onrender.com/)
 
 ## Features
 
