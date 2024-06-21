@@ -16,7 +16,10 @@ const useGetUserProfile = () => {
               if(data.error){
                 showToast("Error",data.error, 'error');
                 return;
-              }        
+              }   
+              if(data.isFrozen){
+                setUser(null);
+              }     
               setUser(data);
             } catch (error) {
               showToast("Error",error, 'error')

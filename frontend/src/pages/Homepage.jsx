@@ -1,9 +1,10 @@
-import { Button, Flex, Spinner } from '@chakra-ui/react'
+import { Box, Button, Flex, Spinner } from '@chakra-ui/react'
 import React, { useEffect, useState } from 'react'
 import useShowToast from '../hooks/useShowToast'
 import Post from '../components/Post'
 import { useRecoilState } from 'recoil'
 import postAtom from '../atoms/postAtom'
+import SuggestedUser from '../components/SuggestedUser'
 
 const Homepage = () => {
 const showToast = useShowToast()
@@ -18,7 +19,6 @@ const [loading, setLoading] = useState(true);
       try {
         const res = await fetch("/api/posts/feed");
         const data = await res.json()
-        console.log(data)
         if(data.error){
           showToast("Error", data.error, "error");
           return
@@ -35,7 +35,9 @@ const [loading, setLoading] = useState(true);
   },[showToast, setPosts])
 
   return (
-    <>
+
+    <Flex gap={10} alignItems={"flex-start"}>
+    <Box flex={70}>
     {loading &&(
       <Flex justifyContent={"center"} >
         <Spinner size={"xl"}/>
@@ -47,7 +49,16 @@ const [loading, setLoading] = useState(true);
     {posts.map((posts)=>(
       <Post key={posts._id} post={posts} postedBy={posts.postedBy}/>
     ))}
-    </>
+    </Box>
+    <Box flex={30}
+    display={{
+      base: "none",
+      md: "block"
+    }}
+    >
+      <SuggestedUser/>
+    </Box>
+    </Flex>
   )
 }
 

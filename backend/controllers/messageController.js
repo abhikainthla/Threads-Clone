@@ -1,14 +1,19 @@
 import Conversation from "../models/conversationModel.js";
 import Message from "../models/messageModel.js";
+import { getRecipientSocketId, io } from "../socket/socket.js";
+import { v2 as cloudinary } from "cloudinary";
 
-const sendMessage = async(req,res)=>{
-    try {
-        const {message,recipientId} = req.body;
-        const senderId = req.user._id;
-        let conversation = await Conversation.findOne({
-            participants: {$all: [senderId, recipientId]},
-        })
-        if (!conversation) {
+async function sendMessage(req, res) {
+	try {
+		const { recipientId, message } = req.body;
+		let { img } = req.body;
+		const senderId = req.user._id;
+
+		let conversation = await Conversation.findOne({
+			participants: { $all: [senderId, recipientId] },
+		});
+
+		if (!conversation) {
 			conversation = new Conversation({
 				participants: [senderId, recipientId],
 				lastMessage: {
@@ -18,70 +23,79 @@ const sendMessage = async(req,res)=>{
 			});
 			await conversation.save();
 		}
-            const newMessage = new Message({
-                text: message,
-                sender:senderId,
-                conversationId: conversation._id
-            })
-            await Promise.all([ newMessage.save(),
-                conversation.updateOne(
-                    {lastMessages: {text: message, sender:senderId}}
-                )
-            ])
-            res.status(201).json(newMessage)
-        
-    } catch (error) {
-        console.log("Error in sendMessage:", error.message)
-        res.status(500).json({error: error.message})
-    }
-}
- 
-const getMessages = async(req,res)=>{
-    const { otherUserId} = req.params;
-    const userId = req.user._id;
-    try {
-        const conversation = await Conversation.findOne({
-            participants:{ $all: [userId, otherUserId]}
-        })
-        if(!conversation){
-            return res.status(404).json({error: "Conversation not found"})
-        }
 
-        const messages = await Message.find({
-            conversationId: conversation._id
-        }).sort({createdAt: 1})
+		if (img) {
+			const uploadedResponse = await cloudinary.uploader.upload(img);
+			img = uploadedResponse.secure_url;
+		}
 
-        res.status(200).json(messages);
+		const newMessage = new Message({
+			conversationId: conversation._id,
+			sender: senderId,
+			text: message,
+			img: img || "",
+		});
 
-     } catch (error) {
-        console.log("Error in getMessage:", error.message)
-        res.status(500).json({error: error.message})
-    }
+		await Promise.all([
+			newMessage.save(),
+			conversation.updateOne({
+				lastMessage: {
+					text: message,
+					sender: senderId,
+				},
+			}),
+		]);
+
+		const recipientSocketId = getRecipientSocketId(recipientId);
+		if (recipientSocketId) {
+			io.to(recipientSocketId).emit("newMessage", newMessage);
+		}
+
+		res.status(201).json(newMessage);
+	} catch (error) {
+		res.status(500).json({ error: error.message });
+	}
 }
 
-const getConversations = async(req,res)=>{
-    const userId = req.user._id;
-    try {
-        const conversations = await Conversation.find({
-            participants: userId
-            }).populate({
-                path: 'participants',
-                select: "username profilePic"
-            })
+async function getMessages(req, res) {
+	const { otherUserId } = req.params;
+	const userId = req.user._id;
+	try {
+		const conversation = await Conversation.findOne({
+			participants: { $all: [userId, otherUserId] },
+		});
 
-            conversations.forEach(conversations => {
-                conversations.participants = conversations.participants.filter((participant) => participant._id.toString() !== userId.toString())
-            })
-            res.status(200).json(conversations);
-        
-    } catch (error) {
-        console.log("Error in getConversations:", error.message)
-        res.status(500).json({error: error.message}) 
-    }
+		if (!conversation) {
+			return res.status(404).json({ error: "Conversation not found" });
+		}
+
+		const messages = await Message.find({
+			conversationId: conversation._id,
+		}).sort({ createdAt: 1 });
+
+		res.status(200).json(messages);
+	} catch (error) {
+		res.status(500).json({ error: error.message });
+	}
 }
 
-export {
-    sendMessage,
-    getMessages,
-    getConversations
+async function getConversations(req, res) {
+	const userId = req.user._id;
+	try {
+		const conversations = await Conversation.find({ participants: userId }).populate({
+			path: "participants",
+			select: "username profilePic",
+		});
+
+		conversations.forEach((conversation) => {
+			conversation.participants = conversation.participants.filter(
+				(participant) => participant._id.toString() !== userId.toString()
+			);
+		});
+		res.status(200).json(conversations);
+	} catch (error) {
+		res.status(500).json({ error: error.message });
+	}
 }
+
+export { sendMessage, getMessages, getConversations };

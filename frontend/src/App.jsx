@@ -10,12 +10,13 @@ import UpdateProfilePage from "./pages/UpdateProfilePage";
 import UserPage from "./pages/UserPage";
 import CreatePost from "./components/CreatePost";
 import ChatPage from "./pages/ChatPage";
+import SettingsPage from "./pages/SettingsPage";
 function App() {
 	const user = useRecoilValue(userAtom);
 	const { pathname } = useLocation();
 	return (
 		<Box position={"relative"} w='full'>
-			<Container maxW={"620px"}>
+			<Container maxW={pathname === "/" ? {base: "620px", md:"900px"} : "620px"}>
 				<Header />
 				<Routes>
 					<Route path='/' element={user ? <Homepage /> : <Navigate to='/auth' />} />
@@ -24,6 +25,7 @@ function App() {
           			<Route path="/:username" element={user ? (<> <UserPage/> <CreatePost/></>) : (<UserPage/>) }/>
 					<Route path='/:username/posts/:pid' element={<PostPage />} />
 					<Route path='/chat' element={ user ? <ChatPage/> : <Navigate to={"/auth"}/>} />
+					<Route path='/setting' element={ user ? <SettingsPage/> : <Navigate to={"/auth"}/>} />
 				</Routes>
 			</Container>
 		</Box>
